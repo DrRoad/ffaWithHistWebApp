@@ -15,10 +15,11 @@ shinyUI(fixedPage(
                fixedRow(
                  column(5,
                         strong("Systematic data information"),
-                                       textInput("Station", h5("NRFA Gauging station number:"),value="39001"),
-                                       textInput("addAMAX", h5("or give a series of AMAX values:"),value="100,12, 18, 163, 12, 17"),
+                                       # textInput("Station", h5("NRFA Gauging station number:"),value="39001"),
+                                       fileInput("amaxFile", h5("Load a .AM file")),
+                                       textInput("addAMAX", h5("or give a series of AMAX values:"), value="10, 12, 18, 13, 12, 17"),
                                        radioButtons("dist", h5("Distribution type:"), c("GLO" = "glo","GEV" = "gev"))),
-                column(7,strong("Historical peak flows information"),
+                  column(7,strong("Historical peak flows information"),
                                        textInput("hdata", h5("Add historical peak flow information:"),value="NULL"),
                                        textInput("h", h5("give the length of period length:"),value="give h"),
                                        textInput("X0", h5("and the perception threshold:"),value="give X0"),
@@ -30,7 +31,8 @@ shinyUI(fixedPage(
                       tabPanel("Floofreq Plot", plotOutput("ffaplot")),
                       # tabPanel("Variance ratio Plot",plotOutput("varplot")),
                       tabPanel("AMAX Plot", plotOutput("dataplot")),
-                      tabPanel("Estimated pars", verbatimTextOutput("summary"))),
+                      tabPanel("Estimated pars", verbatimTextOutput("summary"))
+                      ),
                
                h5(includeMarkdown("footnote.md"), style = "line-height: 1.4") 
         )

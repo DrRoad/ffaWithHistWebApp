@@ -15,10 +15,28 @@ library(markdown)
 source("withHist.R")
 source("ismevExtension.R")
 
-# dat <- read.table("http://gist.githubusercontent.com/ilapros/44c09e95ab5be7591f74/raw/410b165001be83f5e4efddb7d078cf1780b48d69/amData",header = TRUE)
-# dat <- read.csv("Data/amData_v3.3.4.csv", header = TRUE,stringsAsFactors = FALSE)
-# dat <- dat[dat$Rejected == "False",-6]
-load("Data/dat.RDa")
+
+read.AM <- function(file){
+  temptable<-read.csv(file = file, header = FALSE, stringsAsFactors = FALSE)
+  st <- as.numeric(temptable[2,1])
+  amRej <- NULL
+  if(any(temptable[,1] %in% '[AM Rejected]'))   amRej <- temptable[(which(temptable[,1] %in% '[AM Rejected]')+1):(which(temptable[,1] %in% '[END]')[2]-1),1]
+  amRows <- temptable[(which(temptable[,1] %in% '[AM Values]')+1):(nrow(temptable)-1),]
+  amRows <- as.data.frame(amRows)
+  amRows$V4 <- as.Date(amRows[,1], format = "%d %b %Y")
+  amRows$V5 <- as.numeric(substr(amRows[,4], 1,4)) - 1 * as.numeric(substr(amRows[,4], 6,7) < 10)
+  amRows <- amRows[!amRows$V5 %in% as.numeric(amRej),]
+  out <- data.frame(Station = rep(st,nrow(amRows)),
+                    Year = amRows$V5,
+                    Date = amRows$V4,
+                    Flow = as.numeric(amRows$V2),
+                    Level = as.numeric(amRows$V3),
+                    Rejected = "False")
+  out
+}
+  
+
+###### load("Data/dat.RDa")
 
 # 
 # fitdat <- function(x,k,X0,dist){
@@ -40,24 +58,34 @@ shinyServer(function(input, output) {
   #   output$summary <- renderPrint(selDat)
   
   
-  
-  st <- reactive({
-    selDat <- dat[dat$Station %in% input$Station,c("Year","Flow")]
-  })
+  # 
+  # st <- reactive({
+  #   selDat <- dat[dat$Station %in% input$Station,c("Year","Flow")]
+  # })
+  # 
+
   
   output$dataplot <- renderPlot({   
-    selDat <- st()
-    if(max(1,dim(selDat)[1]) < 2) {
+    inFile <- input$amaxFile
+    if(!is.null(inFile)) {
+      selDat <- read.AM(inFile$datapath)
+    }
+    if(is.null(input$amaxFile)) {
       selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,","))));
-      selDat$Year = seq(from = 1, to = length(selDat$Flow))}
+      selDat$Year = seq(from = 1, to = length(selDat$Flow))
+    }
       plot(selDat[,c("Year","Flow")], col = "grey20", type = "h")
   })
   
 output$ffaplot <- renderPlot({  
-    
-    selDat <- st()
-    if(max(1,dim(selDat)[1]) < 2) {selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,",")))); 
-    selDat$Year = seq(from = 1, to = length(selDat$Flow))} 
+    inFile <- input$amaxFile
+    if(!is.null(inFile)) {
+      selDat <- read.AM(inFile$datapath)
+    }
+    if(is.null(input$amaxFile)) {
+      selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,","))));
+      selDat$Year = seq(from = 1, to = length(selDat$Flow))
+    }
     ff <- seq(0.25,0.995,length=300)
     
     sfit <- switch (input$dist,
@@ -125,10 +153,14 @@ output$ffaplot <- renderPlot({
   })
   
 output$varplot <- renderPlot({  
-  
-  selDat <- st()
-  if(max(1,dim(selDat)[1]) < 2) {selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,",")))); 
-  selDat$Year = seq(from = 1, to = length(selDat$Flow))} 
+  inFile <- input$amaxFile
+  if(!is.null(inFile)) {
+    selDat <- read.AM(inFile$datapath)
+  }
+  if(is.null(input$amaxFile)) {
+    selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,","))));
+    selDat$Year = seq(from = 1, to = length(selDat$Flow))
+  }
   ff <- seq(0.5,0.995,length=300)
   
   sfit <- switch (input$dist,
@@ -209,8 +241,14 @@ output$varplot <- renderPlot({
 
 
   output$summary <- renderPrint({
-    
-    selDat <- st()
+    inFile <- input$amaxFile
+    if(!is.null(inFile)) {
+      selDat <- read.AM(inFile$datapath)
+    }
+    if(is.null(input$amaxFile)) {
+      selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,","))));
+      selDat$Year = seq(from = 1, to = length(selDat$Flow))
+    }
     if(max(1,dim(selDat)[1]) < 2) {selDat <- data.frame(Flow = as.numeric(unlist(strsplit(input$addAMAX,",")))); 
     selDat$Year = seq(from = 1, to = length(selDat$Flow))} 
     ff <- seq(0.25,0.995,length=300)
@@ -274,3 +312,41 @@ output$varplot <- renderPlot({
 #     data.frame(x=data())
 #   })
 })
+
+
+# 
+# 
+# ff <- c(list.files("C:\\Users\\ilapro\\Documents\\WINFAP-FEH_v3.3.4\\Suitable for QMED\\",pattern = ".AM",full.names = TRUE),
+#         list.files("C:\\Users\\ilapro\\Documents\\WINFAP-FEH_v3.3.4\\Suitable for Pooling\\",pattern = ".AM",full.names = TRUE),
+#         list.files("C:\\Users\\ilapro\\Documents\\WINFAP-FEH_v3.3.4\\Not suitable for QMED or Pooling\\",pattern = ".AM",full.names = TRUE))
+# 
+# amaxAll <- data.frame(Station = -999,
+#                       Year = 500,
+#                       Date = as.Date("1990-01-01"),
+#                       Flow = as.numeric(-5),
+#                       Level = as.numeric(-5),
+#                       Rejected = as.character("True"))
+# amaxAll <- amaxAll[-1,]
+# for(j in ff){
+#   temptable<-read.csv(file = j, header = FALSE, stringsAsFactors = FALSE)
+#   st <- as.numeric(temptable[2,1])
+#   amRej <- NULL
+#   if(any(temptable[,1] %in% '[AM Rejected]'))   amRej <- temptable[(which(temptable[,1] %in% '[AM Rejected]')+1):(which(temptable[,1] %in% '[END]')[2]-1),1]
+#   amRows <- temptable[(which(temptable[,1] %in% '[AM Values]')+1):(nrow(temptable)-1),]
+#   amRows <- as.data.frame(amRows)
+#   amRows$V4 <- as.Date(amRows[,1], format = "%d %b %Y")
+#   amRows$V5 <- as.numeric(substr(amRows[,4], 1,4)) - 1 * as.numeric(substr(amRows[,4], 6,7) < 10)
+#   amRows <- amRows[!amRows$V5 %in% as.numeric(amRej),]
+#   
+#   out <- data.frame(Station = rep(st,nrow(amRows)),
+#                     Year = amRows$V5,
+#                     Date = amRows$V4,
+#                     Flow = as.numeric(amRows$V2),
+#                     Level = as.numeric(amRows$V3),
+#                     Rejected = "False")
+#   amaxAll <- rbind(amaxAll,out)
+# }
+# amaxAll <- amaxAll[!amaxAll$Station %in% 69002,]
+# amaxAll <- amaxAll[order(amaxAll$Station),]
+# 
+# 
